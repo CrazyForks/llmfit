@@ -213,6 +213,7 @@ fn handle_provider_popup_mode(app: &mut App, key: KeyEvent) {
         KeyCode::Char(' ') | KeyCode::Enter => app.provider_popup_toggle(),
 
         KeyCode::Char('a') => app.provider_popup_select_all(),
+        KeyCode::Char('c') => app.provider_popup_clear_all(),
 
         _ => {}
     }

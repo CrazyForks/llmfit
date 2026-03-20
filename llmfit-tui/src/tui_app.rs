@@ -1027,6 +1027,13 @@ impl App {
         self.apply_filters();
     }
 
+    pub fn provider_popup_clear_all(&mut self) {
+        for s in &mut self.selected_providers {
+            *s = false;
+        }
+        self.apply_filters();
+    }
+
     pub fn use_case_popup_up(&mut self) {
         if self.use_case_cursor > 0 {
             self.use_case_cursor -= 1;
