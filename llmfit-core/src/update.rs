@@ -160,7 +160,7 @@ fn extract_model_params(
     let up = model_id.to_uppercase();
     // Split on typical separators but NOT on '.' so that "1.5B" stays intact.
     let tokens: Vec<&str> = up
-        .split(|c: char| matches!(c, '-' | '/' | '_' | ' ' | ':'))
+        .split(['-', '/', '_', ' ', ':'])
         .collect();
 
     // MoE pattern "8X7B": N experts × M params each.
@@ -168,8 +168,8 @@ fn extract_model_params(
         if let Some(x_pos) = tok.find('X') {
             let (left, right) = tok.split_at(x_pos);
             let right = &right[1..]; // skip 'X'
-            if let (Ok(n_exp), Some(per_exp)) = (left.parse::<u32>(), parse_param_str(right)) {
-                if (2..=512).contains(&n_exp) {
+            if let (Ok(n_exp), Some(per_exp)) = (left.parse::<u32>(), parse_param_str(right))
+                && (2..=512).contains(&n_exp) {
                     let total = per_exp.saturating_mul(n_exp as u64);
                     let active_exp = 2u32.min(n_exp);
                     let active = per_exp.saturating_mul(active_exp as u64);
@@ -188,21 +188,19 @@ fn extract_model_params(
                         Some(active),
                     );
                 }
-            }
         }
     }
 
     // MoE pattern "17B-16E": per-expert params + expert count.
     for window in tokens.windows(2) {
-        if let (Some(pb), Some(ne)) = (parse_param_str(window[0]), parse_expert_suffix(window[1])) {
-            if (2..=512).contains(&ne) {
+        if let (Some(pb), Some(ne)) = (parse_param_str(window[0]), parse_expert_suffix(window[1]))
+            && (2..=512).contains(&ne) {
                 let total = pb.saturating_mul(ne as u64);
                 let ae = 2u32.min(ne);
                 let active = pb.saturating_mul(ae as u64);
                 let s = format!("{}B", pb / 1_000_000_000);
                 return (s, Some(total), true, Some(ne), Some(ae), Some(active));
             }
-        }
     }
 
     // Standard dense model: first matching NB / NM token wins.

@@ -460,7 +460,7 @@ impl Default for ModelDatabase {
 /// Strips the `org/` prefix, lowercases, and collapses `-`/`_`/`.` so that
 /// `meta-llama/Llama-3.1-8B` and `meta-llama/llama-3.1-8b` compare equal.
 pub(crate) fn canonical_slug(name: &str) -> String {
-    let slug = name.split('/').last().unwrap_or(name);
+    let slug = name.split('/').next_back().unwrap_or(name);
     slug.to_lowercase().replace(['-', '_', '.'], "")
 }
 
