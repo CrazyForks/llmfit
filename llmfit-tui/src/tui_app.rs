@@ -1693,9 +1693,17 @@ impl App {
                 self.bench_entries = resp.rows;
                 self.bench_loading = false;
             }
-            Err(e) => {
-                self.bench_error = Some(e);
+            Err(_) => {
+                // API failed — try embedded cache fallback
                 self.bench_loading = false;
+                if let Some(cached) = self.find_cached_for_specs() {
+                    self.bench_total = cached.total;
+                    self.bench_entries = cached.rows;
+                    self.bench_error = Some("Using cached data (API unreachable)".to_string());
+                } else {
+                    self.bench_error =
+                        Some("API unreachable and no cached data for this hardware".to_string());
+                }
             }
         }
     }
@@ -1714,7 +1722,30 @@ impl App {
 
     pub fn bench_refresh(&mut self) {
         self.bench_entries.clear();
+        self.bench_error = None;
         self.fetch_benchmarks();
+    }
+
+    /// Try to find cached benchmark data matching the user's detected hardware.
+    fn find_cached_for_specs(&self) -> Option<llmfit_core::benchmarks::LeaderboardResponse> {
+        let gpu_name = self.specs.gpu_name.as_deref().unwrap_or("");
+        let lower = gpu_name.to_lowercase();
+
+        // Try each preset and see if the GPU name matches
+        for preset in llmfit_core::benchmarks::HardwarePreset::all() {
+            if let Some(hw_name) = preset.hardware_name {
+                if lower.contains(&hw_name.to_lowercase()) {
+                    if let Some(cached) =
+                        llmfit_core::benchmarks::cached_leaderboard_for_preset(preset.label)
+                    {
+                        if !cached.rows.is_empty() {
+                            return Some(cached);
+                        }
+                    }
+                }
+            }
+        }
+        None
     }
 
     pub fn open_bench_hw_picker(&mut self) {
@@ -1764,9 +1795,20 @@ impl App {
                     self.bench_entries = resp.rows;
                     self.bench_loading = false;
                 }
-                Err(e) => {
-                    self.bench_error = Some(e);
+                Err(_) => {
+                    // API failed — try embedded cache
                     self.bench_loading = false;
+                    if let Some(cached) =
+                        llmfit_core::benchmarks::cached_leaderboard_for_preset(preset.label)
+                    {
+                        self.bench_total = cached.total;
+                        self.bench_entries = cached.rows;
+                        self.bench_error = Some("Using cached data (API unreachable)".to_string());
+                    } else {
+                        self.bench_error = Some(
+                            "API unreachable and no cached data for this hardware".to_string(),
+                        );
+                    }
                 }
             }
         }

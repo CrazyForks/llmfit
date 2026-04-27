@@ -2,11 +2,16 @@
 //!
 //! Fetches real-world benchmark results (tok/s, TTFT, VRAM usage) for
 //! hardware configurations that match the user's detected system specs.
+//! Includes an embedded cache as fallback when the API is unreachable.
 
 use crate::hardware::{GpuBackend, SystemSpecs};
 use serde::{Deserialize, Serialize};
+use std::sync::OnceLock;
 
 const BASE_URL: &str = "https://localmaxxing.com/api";
+
+// Embedded benchmark cache — scraped by scripts/scrape_benchmarks.py
+const BENCHMARK_CACHE_JSON: &str = include_str!("../data/benchmark_cache.json");
 
 // ── Response types ───────────────────────────────────────────────────
 
@@ -288,6 +293,51 @@ fn nearest_mem_tier(gb: f64) -> u32 {
         }
     }
     best
+}
+
+// ── Embedded cache ───────────────────────────────────────────────────
+
+/// Cache structure matching the scraper output.
+#[derive(Debug, Clone, Deserialize)]
+struct BenchmarkCache {
+    #[serde(default)]
+    scraped_at: Option<String>,
+    #[serde(default)]
+    presets: std::collections::HashMap<String, CachedPreset>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct CachedPreset {
+    rows: Vec<LeaderboardEntry>,
+    #[serde(default)]
+    total: u64,
+}
+
+/// Lazily parsed embedded benchmark cache.
+fn embedded_cache() -> &'static BenchmarkCache {
+    static CACHE: OnceLock<BenchmarkCache> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        serde_json::from_str(BENCHMARK_CACHE_JSON).unwrap_or_else(|_| BenchmarkCache {
+            scraped_at: None,
+            presets: std::collections::HashMap::new(),
+        })
+    })
+}
+
+/// Look up cached leaderboard data for a hardware preset label.
+pub fn cached_leaderboard_for_preset(label: &str) -> Option<LeaderboardResponse> {
+    let cache = embedded_cache();
+    cache.presets.get(label).map(|p| LeaderboardResponse {
+        rows: p.rows.clone(),
+        total: p.total,
+        limit: p.rows.len() as u64,
+        offset: 0,
+    })
+}
+
+/// Returns the scrape timestamp of the embedded cache, if available.
+pub fn cache_timestamp() -> Option<&'static str> {
+    embedded_cache().scraped_at.as_deref()
 }
 
 // ── Fetch functions ──────────────────────────────────────────────────
