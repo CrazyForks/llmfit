@@ -273,6 +273,8 @@ For failed downloads (e.g. 404 errors), `x` removes the entry from history. For 
 
 Press `b` to open the Community Benchmarks view. Instead of relying solely on llmfit's theoretical speed estimates, this view shows **real-world performance data** from other users with the same hardware — actual measured tok/s, time-to-first-token, and peak VRAM usage.
 
+![Community Benchmarks](assets/benchmarks.svg)
+
 Data is sourced from [localmaxxing.com](https://localmaxxing.com), a community benchmark database. When you open the view, llmfit auto-detects your hardware (GPU model, VRAM tier, Apple Silicon chip family, OS) and queries for matching results.
 
 | Column       | Description                                              |
